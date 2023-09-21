@@ -1,0 +1,82 @@
+/* style.css */
+
+body {
+  font-family: Arial, sans-serif;
+}
+
+h1 {
+  color: #007bff;
+}
+
+label {
+  font-weight: bold;
+}
+
+input[type="submit"] {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  cursor: pointer;
+}
+
+form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-gap: 20px;
+  max-width: fit-content;
+}
+
+.form-input {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Table Settings */
+.settings-container {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.points-filter {
+  display: flex;
+  flex-direction: row;
+  gap: 4px;
+}
+
+/* Table Styles */
+.table-container {
+  max-width: 800px;
+  margin: 20px auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 20px;
+}
+
+table,
+th,
+td {
+  border: 1px solid #ccc;
+}
+
+th,
+td {
+  padding: 10px;
+  text-align: left;
+}
+
+/* Button Styles */
+.edit-button {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  padding: 5px 10px;
+  cursor: pointer;
+  font-weight: bold;
+}
