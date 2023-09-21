@@ -1,0 +1,50 @@
+{% load static %}
+
+<link rel="stylesheet" href="{% static 'style.css' %}" />
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <title>Sign In</title>
+  </head>
+  <body>
+    <h1>Sign In</h1>
+    <form id="signin-form" action="{% url 'signin' %}" method="POST">
+      {% csrf_token %}
+      <div class="form-input">
+        <label for="username">Username:</label>
+        <input type="text" id="username" name="username" required />
+      </div>
+      <div class="form-input">
+        <label for="password">Password:</label>
+        <input type="password" id="password" name="password" required />
+      </div>
+      <input type="submit" value="Sign In" />
+    </form>
+  </body>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
+  <script>
+    $(document).ready(function () {
+      $("#signin-form").submit(function (event) {
+        event.preventDefault();
+
+        $.ajax({
+          url: "{% url 'obtain-auth-token' %}",
+          method: "POST",
+          data: $(this).serialize(),
+          success: function (data) {
+            // Store the token in cookies or localStorage
+            document.cookie = "auth_token=" + data.token + "; path=/";
+
+            // Redirect to content_list.html
+            window.location.replace("{% url 'content-list' %}");
+          },
+          error: function (error) {
+            console.error(error);
+          },
+        });
+      });
+    });
+  </script>
+</html>
