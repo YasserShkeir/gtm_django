@@ -1,0 +1,308 @@
+{% load static %}
+
+<link rel="stylesheet" href="{% static 'style.css' %}" />
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Content List</title>
+  </head>
+  <body>
+    <h1>Content List</h1>
+
+    <form id="content-form">
+      {% csrf_token %}
+      <div class="form-input">
+        <label for="title">Title:</label>
+        <input type="text" id="title" name="title" required />
+      </div>
+
+      <div class="form-input">
+        <label for="points">Points:</label>
+        <input type="number" id="points" name="points" required />
+      </div>
+
+      <div class="form-input">
+        <label for="language">Language:</label>
+        <input type="text" id="language" name="language" required />
+      </div>
+
+      <div class="form-input">
+        <label for="text">Text:</label>
+        <textarea id="text" name="text" required></textarea>
+      </div>
+
+      <input type="submit" value="Create" />
+    </form>
+
+    <div class="settings-container">
+      <div class="language-filter">
+        <label for="table-language-filter">Filter by Language:</label>
+        <select id="table-language-filter">
+          <option value="">All Languages</option>
+        </select>
+      </div>
+      <div class="points-filter">
+        <label for="table-points-filter">Filter by Points:</label>
+        <input type="number" id="table-points-filter" />
+      </div>
+      <div class="search-container">
+        <input type="text" id="search-title" placeholder="Search by Title" />
+        <button id="search-button">Search</button>
+      </div>
+    </div>
+
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Points</th>
+            <th>Language</th>
+            <th>Creation Date</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="content-list-body"></tbody>
+      </table>
+    </div>
+
+    <div class="pagination-container">
+      <button id="previous-button" disabled>Previous</button>
+      <button id="next-button">Next</button>
+    </div>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
+    <script>
+      function getAuthToken() {
+        const cookies = document.cookie.split(";");
+        for (let i = 0; i < cookies.length; i++) {
+          const cookie = cookies[i].trim();
+          if (cookie.startsWith("auth_token=")) {
+            return cookie.substring("auth_token=".length, cookie.length);
+          }
+        }
+        return null;
+      }
+
+      const authToken = getAuthToken();
+
+      function sendAuthenticatedRequest(url, method, data = {}) {
+        if (!authToken) {
+          console.error("Authentication token is missing.");
+          return;
+        }
+
+        $.ajax({
+          url: url,
+          method: method,
+          headers: {
+            Authorization: `Token ${authToken}`,
+          },
+          data: data,
+          success: function (response) {
+            if (url === "{% url 'language-list' %}") {
+              const languageFilter = $("#table-language-filter");
+              languageFilter.empty();
+              languageFilter.append('<option value="">All Languages</option>');
+              response.forEach((language) => {
+                languageFilter.append(
+                  `<option value="${language.name}">${language.name}</option>`,
+                );
+              });
+            }
+          },
+          error: function (error) {
+            console.error(error);
+          },
+        });
+      }
+
+      function fetchLanguages() {
+        sendAuthenticatedRequest("{% url 'language-list' %}", "GET");
+      }
+
+      fetchLanguages();
+
+      $("#table-language-filter").change(function () {
+        refreshContentList();
+      });
+
+      $("#content-form").submit(function (event) {
+        event.preventDefault();
+
+        $.ajax({
+          url: "{% url 'create-content' %}",
+          method: "POST",
+          headers: {
+            Authorization: `Token ${authToken}`,
+          },
+          data: $(this).serialize(),
+          success: function (data) {
+            $("#title").val("");
+            $("#points").val("");
+            $("#language").val("");
+            $("#text").val("");
+
+            refreshContentList();
+          },
+          error: function (error) {
+            console.error(error);
+          },
+        });
+      });
+
+      let current_page = 1;
+
+      function refreshContentList() {
+        const selectedLanguage = $("#table-language-filter").val();
+        const selectedPoints = $("#table-points-filter").val();
+        const searchTitle = $("#search-title").val();
+
+        $.ajax({
+          url: "{% url 'dashboard-content' %}",
+          method: "POST",
+          headers: {
+            Authorization: `Token ${authToken}`,
+          },
+          data: {
+            language: selectedLanguage,
+            points: selectedPoints,
+            search_title: searchTitle,
+            page: current_page,
+          },
+          success: function (data) {
+            const contentListBody = $("#content-list-body");
+            contentListBody.empty();
+
+            data.forEach((content) => {
+              const newRow = `
+                <tr>
+                  <td>
+                    <span class="editable" data-id="${content.id}">${content.title}</span>
+                    <input type="text" class="edit-input" data-id="${content.id}" style="display: none" />
+                  </td>
+                  <td>
+                    <span class="editable" data-id="${content.id}">${content.points}</span>
+                    <input type="number" class="edit-input" data-id="${content.id}" style="display: none" />
+                  </td>
+                  <td>
+                    <span class="editable" data-id="${content.id}">${content.language}</span>
+                    <input type="text" class="edit-input" data-id="${content.id}" style="display: none" />
+                  </td>
+                  <td>${content.creationDate}</td>
+                  <td>
+                    <button class="edit-button" data-id="${content.id}">Edit</button>
+                  </td>
+                </tr>
+              `;
+              contentListBody.append(newRow);
+            });
+
+            updatePaginationButtons(data.length);
+          },
+          error: function (error) {
+            console.error(error);
+          },
+        });
+      }
+
+      function updatePaginationButtons(dataLength) {
+        const previousButton = $("#previous-button");
+        const nextButton = $("#next-button");
+
+        if (current_page > 1) {
+          previousButton.prop("disabled", false);
+        } else {
+          previousButton.prop("disabled", true);
+        }
+
+        if (dataLength === 0 || dataLength < 10) {
+          nextButton.prop("disabled", true);
+        } else {
+          nextButton.prop("disabled", false);
+        }
+      }
+
+      $("#previous-button").click(function () {
+        if (current_page > 1) {
+          current_page--;
+          refreshContentList();
+        }
+      });
+
+      $("#next-button").click(function () {
+        current_page++;
+        refreshContentList();
+      });
+
+      $(document).on("click", ".edit-button", function () {
+        const contentId = $(this).data("id");
+        const editButton = $(this);
+        const buttonText = editButton.text().trim();
+
+        if (buttonText === "Edit") {
+          toggleEdit(contentId);
+          editButton.text("Save");
+          editButton.css("background-color", "#28a745");
+
+          const contentRow = $(`.editable[data-id=${contentId}]`);
+          const titleInput = $(`.edit-input[data-id=${contentId}]:eq(0)`);
+          const pointsInput = $(`.edit-input[data-id=${contentId}]:eq(1)`);
+          const languageInput = $(`.edit-input[data-id=${contentId}]:eq(2)`);
+
+          titleInput.val(contentRow.eq(0).text().trim());
+          pointsInput.val(contentRow.eq(1).text().trim());
+          languageInput.val(contentRow.eq(2).text().trim());
+        } else if (buttonText === "Save") {
+          const updatedTitle = $(
+            `.edit-input[data-id=${contentId}]:eq(0)`,
+          ).val();
+          const updatedPoints = $(
+            `.edit-input[data-id=${contentId}]:eq(1)`,
+          ).val();
+          const updatedLanguage = $(
+            `.edit-input[data-id=${contentId}]:eq(2)`,
+          ).val();
+
+          $.ajax({
+            url: "{% url 'update-content' %}",
+            method: "POST",
+            headers: {
+              Authorization: `Token ${authToken}`,
+            },
+            data: {
+              id: contentId,
+              title: updatedTitle,
+              points: updatedPoints,
+              language: updatedLanguage,
+            },
+            success: function () {
+              toggleEdit(contentId);
+              editButton.text("Edit");
+              editButton.css("background-color", "#007bff");
+
+              refreshContentList();
+            },
+            error: function (error) {
+              console.error(error);
+            },
+          });
+        }
+      });
+
+      function toggleEdit(contentId) {
+        $(`.editable[data-id=${contentId}]`).toggle();
+        $(`.edit-input[data-id=${contentId}]`).toggle();
+      }
+
+      $("#search-button").click(function () {
+        refreshContentList();
+      });
+
+      $(document).ready(function () {
+        refreshContentList();
+      });
+    </script>
+  </body>
+</html>
